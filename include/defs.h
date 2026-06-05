@@ -33,14 +33,14 @@ constexpr auto errors = {
     // TODO: add more errors
 };
 
-typedef const struct {
+typedef struct {
   char symbol[20]; // the current symbol
   int address;     // memory location of this symbol
   bool used;       //  wether it is used
   bool defined;    // wether it is defined
 } SymbolTable;
 
-typedef const struct {
+typedef struct {
   int address; // location in the memory
   int code;    // operation code aka opcode
   int reg;     // register operand
@@ -48,7 +48,7 @@ typedef const struct {
   int value;   // the actual contents
 } ICTable;
 
-typedef const struct {
+typedef struct {
   int line;  // line number
   int error; // error code
 } ErrorTable;
