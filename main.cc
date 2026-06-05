@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <list>
+#include <string>
 
 #include <assembler.h>
 
@@ -22,15 +23,22 @@ int main(int argc, char const *argv[]) {
   if (argc == 1) return usage(argv[0]);
 
   if (argc == 2) {
-    /*TODO check the file */
-    return a.loadFile(argv[1]);
+    if (a.loadFile(argv[1]) == 0) {
+      a.assemble();
+      return a.saveToFile("out.obj");
+    }
+    return 1;
   }
 
   if (argc == 3) {
     auto it = std::find(args.begin(), args.end(), argv[2]);
     if (it != args.end()) {
       a.enableTrace();
-      return a.loadFile(argv[1]);
+      if (a.loadFile(argv[1]) == 0) {
+        a.assemble();
+        return a.saveToFile("out.obj");
+      }
+      return 1;
     }
 
     std::cout << "Invalid 2nd argument\n";
