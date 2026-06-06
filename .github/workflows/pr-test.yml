@@ -1,0 +1,15 @@
+name: Run Test on PR
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: test
+      run: make test && ./test_main
