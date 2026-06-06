@@ -51,22 +51,22 @@ int Assembler::loadFile(const char *name) {
 int Assembler::assemble() {
   int LC = 0;
 
-  std::map<std::string, int> inst_map;
+  std::map<std::string, InstructionCode> inst_map;
   for (const auto& pair : instructions) {
     inst_map[pair.second] = pair.first;
   }
 
-  std::map<std::string, int> reg_map;
+  std::map<std::string, RegisterCode> reg_map;
   for (const auto& pair : registers) {
     reg_map[pair.second] = pair.first;
   }
 
-  std::map<std::string, int> cond_map;
+  std::map<std::string, ConditionCode> cond_map;
   for (const auto& pair : conditions) {
     cond_map[pair.second] = pair.first;
   }
 
-  std::map<std::string, int> dir_map;
+  std::map<std::string, DirectiveCode> dir_map;
   for (const auto& pair : directives) {
     dir_map[pair.second] = pair.first;
   }
@@ -115,18 +115,18 @@ int Assembler::assemble() {
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
-      int dir_code = dir_map[op];
-      if (dir_code == D_START) {
+      DirectiveCode dir_code = dir_map[op];
+      if (dir_code == DirectiveCode::D_START) {
         if (token_idx + 1 < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
         }
-      } else if (dir_code == D_END) {
+      } else if (dir_code == DirectiveCode::D_END) {
         break;
-      } else if (dir_code == D_DS) {
+      } else if (dir_code == DirectiveCode::D_DS) {
         if (token_idx + 1 < tokens.size()) {
           LC += std::stoi(tokens[token_idx + 1]);
         }
-      } else if (dir_code == D_DC) {
+      } else if (dir_code == DirectiveCode::D_DC) {
         LC += 1;
       }
     } else if (inst_map.find(op) != inst_map.end()) {
@@ -153,14 +153,14 @@ int Assembler::assemble() {
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
-      int dir_code = dir_map[op];
-      if (dir_code == D_START) {
+      DirectiveCode dir_code = dir_map[op];
+      if (dir_code == DirectiveCode::D_START) {
         if (token_idx + 1 < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
         }
-      } else if (dir_code == D_END) {
+      } else if (dir_code == DirectiveCode::D_END) {
         break;
-      } else if (dir_code == D_DS) {
+      } else if (dir_code == DirectiveCode::D_DS) {
         int size = std::stoi(tokens[token_idx + 1]);
         for (int k = 0; k < size; ++k) {
           ICTable entry;
@@ -171,7 +171,7 @@ int Assembler::assemble() {
           entry.value = 0;
           ic.push_back(entry);
         }
-      } else if (dir_code == D_DC) {
+      } else if (dir_code == DirectiveCode::D_DC) {
         ICTable entry;
         entry.address = LC++;
         entry.code = -1;
@@ -181,10 +181,10 @@ int Assembler::assemble() {
         ic.push_back(entry);
       }
     } else if (inst_map.find(op) != inst_map.end()) {
-      int inst_code = inst_map[op];
+      InstructionCode inst_code = inst_map[op];
       ICTable entry;
       entry.address = LC++;
-      entry.code = inst_code;
+      entry.code = static_cast<int>(inst_code);
       entry.reg = 0;
       entry.type = false;
       entry.value = 0;
@@ -194,11 +194,11 @@ int Assembler::assemble() {
 
         if (op1.back() == ',') op1.pop_back();
 
-        if (inst_code == I_STOP) {
+        if (inst_code == InstructionCode::I_STOP) {
           // No operands
-        } else if (inst_code == I_BC) {
+        } else if (inst_code == InstructionCode::I_BC) {
           if (cond_map.find(op1) != cond_map.end()) {
-            entry.reg = cond_map[op1];
+            entry.reg = static_cast<int>(cond_map[op1]);
           }
           if (token_idx + 2 < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
@@ -224,7 +224,7 @@ int Assembler::assemble() {
               entry.value = 0;
             }
           }
-        } else if (inst_code == I_READ || inst_code == I_PRINT) {
+        } else if (inst_code == InstructionCode::I_READ || inst_code == InstructionCode::I_PRINT) {
           std::string op2 = op1;
           bool found = false;
           for (auto& s : symtab) {
@@ -249,7 +249,7 @@ int Assembler::assemble() {
           }
         } else {
           if (reg_map.find(op1) != reg_map.end()) {
-            entry.reg = reg_map[op1];
+            entry.reg = static_cast<int>(reg_map[op1]);
           }
           if (token_idx + 2 < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
@@ -330,8 +330,6 @@ int Assembler::saveToFile(char const *name) {
     file << std::setw(4) << std::setfill('0') << entry.address << " ";
     if (entry.code == -1) {
       // Data
-      // For DATA we could use the string "DATA" but to avoid hardcoded string
-      // we might use a predefined string if the prompt meant that, but "DATA" is generic.
       file << "DATA " << std::setw(4) << std::setfill('0') << entry.value << "\n";
     } else {
       // Instruction
