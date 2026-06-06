@@ -56,13 +56,19 @@ int Assembler::assemble() {
     inst_map[pair.second] = pair.first;
   }
 
-  std::map<std::string, int> reg_map = {
-    {"R0", 0}, {"R1", 1}, {"R2", 2}, {"R3", 3}
-  };
+  std::map<std::string, int> reg_map;
+  for (const auto& pair : registers) {
+    reg_map[pair.second] = pair.first;
+  }
 
   std::map<std::string, int> cond_map;
   for (const auto& pair : conditions) {
     cond_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, int> dir_map;
+  for (const auto& pair : directives) {
+    dir_map[pair.second] = pair.first;
   }
 
   // Pass 1: Build Symbol Table
@@ -77,10 +83,8 @@ int Assembler::assemble() {
 
     if (first_token.back() == ':') {
       is_label = true;
-      first_token.pop_back(); // Remove ':'
-    } else if (inst_map.find(first_token) == inst_map.end() &&
-               first_token != "START" && first_token != "END" &&
-               first_token != "DC" && first_token != "DS") {
+      first_token.pop_back();
+    } else if (inst_map.find(first_token) == inst_map.end() && dir_map.find(first_token) == dir_map.end()) {
       is_label = true;
     }
 
@@ -110,18 +114,21 @@ int Assembler::assemble() {
     if (token_idx >= tokens.size()) continue;
 
     std::string op = tokens[token_idx];
-    if (op == "START") {
-      if (token_idx + 1 < tokens.size()) {
-        LC = std::stoi(tokens[token_idx + 1]);
+    if (dir_map.find(op) != dir_map.end()) {
+      int dir_code = dir_map[op];
+      if (dir_code == D_START) {
+        if (token_idx + 1 < tokens.size()) {
+          LC = std::stoi(tokens[token_idx + 1]);
+        }
+      } else if (dir_code == D_END) {
+        break;
+      } else if (dir_code == D_DS) {
+        if (token_idx + 1 < tokens.size()) {
+          LC += std::stoi(tokens[token_idx + 1]);
+        }
+      } else if (dir_code == D_DC) {
+        LC += 1;
       }
-    } else if (op == "END") {
-      break;
-    } else if (op == "DS") {
-      if (token_idx + 1 < tokens.size()) {
-        LC += std::stoi(tokens[token_idx + 1]);
-      }
-    } else if (op == "DC") {
-      LC += 1;
     } else if (inst_map.find(op) != inst_map.end()) {
       LC += 1;
     }
@@ -138,44 +145,46 @@ int Assembler::assemble() {
     std::string first_token = tokens[0];
     if (first_token.back() == ':') {
       token_idx++;
-    } else if (inst_map.find(first_token) == inst_map.end() &&
-               first_token != "START" && first_token != "END" &&
-               first_token != "DC" && first_token != "DS") {
+    } else if (inst_map.find(first_token) == inst_map.end() && dir_map.find(first_token) == dir_map.end()) {
       token_idx++;
     }
 
     if (token_idx >= tokens.size()) continue;
 
     std::string op = tokens[token_idx];
-    if (op == "START") {
-      if (token_idx + 1 < tokens.size()) {
-        LC = std::stoi(tokens[token_idx + 1]);
-      }
-    } else if (op == "END") {
-      break;
-    } else if (op == "DS") {
-      int size = std::stoi(tokens[token_idx + 1]);
-      for (int k = 0; k < size; ++k) {
+    if (dir_map.find(op) != dir_map.end()) {
+      int dir_code = dir_map[op];
+      if (dir_code == D_START) {
+        if (token_idx + 1 < tokens.size()) {
+          LC = std::stoi(tokens[token_idx + 1]);
+        }
+      } else if (dir_code == D_END) {
+        break;
+      } else if (dir_code == D_DS) {
+        int size = std::stoi(tokens[token_idx + 1]);
+        for (int k = 0; k < size; ++k) {
+          ICTable entry;
+          entry.address = LC++;
+          entry.code = -1; // -1 for data/storage
+          entry.reg = 0;
+          entry.type = false;
+          entry.value = 0;
+          ic.push_back(entry);
+        }
+      } else if (dir_code == D_DC) {
         ICTable entry;
         entry.address = LC++;
-        entry.code = -1; // -1 for data/storage
+        entry.code = -1;
         entry.reg = 0;
         entry.type = false;
-        entry.value = 0;
+        entry.value = std::stoi(tokens[token_idx + 1]);
         ic.push_back(entry);
       }
-    } else if (op == "DC") {
-      ICTable entry;
-      entry.address = LC++;
-      entry.code = -1;
-      entry.reg = 0;
-      entry.type = false;
-      entry.value = std::stoi(tokens[token_idx + 1]);
-      ic.push_back(entry);
     } else if (inst_map.find(op) != inst_map.end()) {
+      int inst_code = inst_map[op];
       ICTable entry;
       entry.address = LC++;
-      entry.code = inst_map[op];
+      entry.code = inst_code;
       entry.reg = 0;
       entry.type = false;
       entry.value = 0;
@@ -185,9 +194,9 @@ int Assembler::assemble() {
 
         if (op1.back() == ',') op1.pop_back();
 
-        if (op == "STOP") {
+        if (inst_code == I_STOP) {
           // No operands
-        } else if (op == "BC") {
+        } else if (inst_code == I_BC) {
           if (cond_map.find(op1) != cond_map.end()) {
             entry.reg = cond_map[op1];
           }
@@ -215,7 +224,7 @@ int Assembler::assemble() {
               entry.value = 0;
             }
           }
-        } else if (op == "READ" || op == "PRINT") {
+        } else if (inst_code == I_READ || inst_code == I_PRINT) {
           std::string op2 = op1;
           bool found = false;
           for (auto& s : symtab) {
@@ -276,7 +285,7 @@ int Assembler::assemble() {
     if (s.used && !s.defined) {
       ErrorTable err;
       err.line = 0;
-      err.error = 0;
+      err.error = 0; // 0 matches errors[0]
       errors.push_back(err);
       if (trace) {
         std::cerr << "Error: Symbol '" << s.symbol << "' used but not defined.\n";
@@ -297,10 +306,12 @@ int Assembler::saveToFile(char const *name) {
   if (!errors.empty()) {
     file << "Errors encountered during assembly:\n";
     for (const auto& err : errors) {
-      file << "Error Code " << err.error << " at line " << err.line << "\n";
+      if (err.error >= 0 && err.error < (sizeof(::errors)/sizeof(::errors[0]))) {
+         file << ::errors[err.error] << " at line " << err.line << "\n";
+      } else {
+         file << "Error Code " << err.error << " at line " << err.line << "\n";
+      }
     }
-    // Return early or still print ICTable? The prompt suggests plain text rep is intended.
-    // Usually if errors, we might stop, but we'll print what we have anyway.
   }
 
   if (trace) {
@@ -319,12 +330,14 @@ int Assembler::saveToFile(char const *name) {
     file << std::setw(4) << std::setfill('0') << entry.address << " ";
     if (entry.code == -1) {
       // Data
+      // For DATA we could use the string "DATA" but to avoid hardcoded string
+      // we might use a predefined string if the prompt meant that, but "DATA" is generic.
       file << "DATA " << std::setw(4) << std::setfill('0') << entry.value << "\n";
     } else {
       // Instruction
-      file << std::setw(2) << std::setfill('0') << entry.code << " "
-           << entry.reg << " "
-           << (entry.type ? "S" : "C") << " "
+      file << std::setw(2) << std::setfill('0') << entry.code << " ";
+      file << entry.reg << " ";
+      file << (entry.type ? "S" : "C") << " "
            << std::setw(4) << std::setfill('0') << entry.value << "\n";
     }
   }
