@@ -2,6 +2,7 @@
 Checks:          'clang-diagnostic-*,clang-analyzer-*'
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
 FormatStyle:     llvm
 User:            bharat
 CheckOptions:
