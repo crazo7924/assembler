@@ -14,6 +14,12 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET) out.obj
+	rm -f $(OBJS) $(TARGET) out.obj test_main
 
-.PHONY: all clean
+.PHONY: all clean test
+
+test_main: tests/test_main.cc assembler.o
+	$(CXX) $(CXXFLAGS) -o test_main tests/test_main.cc assembler.o
+
+test: test_main
+	./test_main
