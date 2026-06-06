@@ -1,1 +1,4 @@
 out/
+assembler
+*.o
+out.obj

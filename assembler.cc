@@ -76,7 +76,7 @@ int Assembler::assemble() {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
 
-    int token_idx = 0;
+    size_t token_idx = 0;
 
     std::string first_token = tokens[0];
     bool is_label = false;
@@ -111,19 +111,19 @@ int Assembler::assemble() {
       token_idx++;
     }
 
-    if (static_cast<size_t>(token_idx) >= tokens.size()) continue;
+    if (token_idx >= tokens.size()) continue;
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
       DirectiveCode dir_code = dir_map[op];
       if (dir_code == DirectiveCode::D_START) {
-        if (static_cast<size_t>(token_idx + 1) < tokens.size()) {
+        if ((token_idx + 1) < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
         }
       } else if (dir_code == DirectiveCode::D_END) {
         break;
       } else if (dir_code == DirectiveCode::D_DS) {
-        if (static_cast<size_t>(token_idx + 1) < tokens.size()) {
+        if ((token_idx + 1) < tokens.size()) {
           LC += std::stoi(tokens[token_idx + 1]);
         }
       } else if (dir_code == DirectiveCode::D_DC) {
@@ -140,7 +140,7 @@ int Assembler::assemble() {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
 
-    int token_idx = 0;
+    size_t token_idx = 0;
 
     std::string first_token = tokens[0];
     if (first_token.back() == ':') {
@@ -149,13 +149,13 @@ int Assembler::assemble() {
       token_idx++;
     }
 
-    if (static_cast<size_t>(token_idx) >= tokens.size()) continue;
+    if (token_idx >= tokens.size()) continue;
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
       DirectiveCode dir_code = dir_map[op];
       if (dir_code == DirectiveCode::D_START) {
-        if (static_cast<size_t>(token_idx + 1) < tokens.size()) {
+        if ((token_idx + 1) < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
         }
       } else if (dir_code == DirectiveCode::D_END) {
@@ -189,7 +189,7 @@ int Assembler::assemble() {
       entry.type = false;
       entry.value = 0;
 
-      if (static_cast<size_t>(token_idx + 1) < tokens.size()) {
+      if ((token_idx + 1) < tokens.size()) {
         std::string op1 = tokens[token_idx + 1];
 
         if (op1.back() == ',') op1.pop_back();
@@ -200,7 +200,7 @@ int Assembler::assemble() {
           if (cond_map.find(op1) != cond_map.end()) {
             entry.reg = static_cast<int>(cond_map[op1]);
           }
-          if (static_cast<size_t>(token_idx + 2) < tokens.size()) {
+          if ((token_idx + 2) < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
@@ -251,7 +251,7 @@ int Assembler::assemble() {
           if (reg_map.find(op1) != reg_map.end()) {
             entry.reg = static_cast<int>(reg_map[op1]);
           }
-          if (static_cast<size_t>(token_idx + 2) < tokens.size()) {
+          if ((token_idx + 2) < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
