@@ -1,4 +1,4 @@
-out/
-assembler
 *.o
+assembler
+test_main
 out.obj

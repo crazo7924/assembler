@@ -304,12 +304,12 @@ int Assembler::saveToFile(char const *name) {
   }
 
   if (!errors.empty()) {
-    file << "Errors encountered during assembly:\n";
+    std::cerr << "Errors encountered during assembly:\n";
     for (const auto& err : errors) {
       if (err.error >= 0 && static_cast<size_t>(err.error) < (sizeof(::errors)/sizeof(::errors[0]))) {
-         file << ::errors[err.error] << " at line " << err.line << "\n";
+         std::cerr << ::errors[err.error] << " at line " << err.line << "\n";
       } else {
-         file << "Error Code " << err.error << " at line " << err.line << "\n";
+         std::cerr << "Error Code " << err.error << " at line " << err.line << "\n";
       }
     }
   }

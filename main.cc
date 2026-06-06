@@ -24,8 +24,9 @@ int main(int argc, char const *argv[]) {
 
   if (argc == 2) {
     if (a.loadFile(argv[1]) == 0) {
-      a.assemble();
-      return a.saveToFile("out.obj");
+      int ret = a.assemble();
+      a.saveToFile("out.obj");
+      return ret;
     }
     return 1;
   }
@@ -35,8 +36,9 @@ int main(int argc, char const *argv[]) {
     if (it != args.end()) {
       a.enableTrace();
       if (a.loadFile(argv[1]) == 0) {
-        a.assemble();
-        return a.saveToFile("out.obj");
+        int ret = a.assemble();
+        a.saveToFile("out.obj");
+        return ret;
       }
       return 1;
     }
