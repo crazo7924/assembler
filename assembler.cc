@@ -98,7 +98,7 @@ int Assembler::assemble() {
 
       bool exists = false;
       for (auto& s : symtab) {
-        if (std::string(s.symbol) == first_token) {
+        if (first_token == s.symbol) {
           s.defined = true;
           s.address = LC;
           exists = true;
@@ -204,7 +204,7 @@ int Assembler::assemble() {
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (std::string(s.symbol) == op2) {
+              if (op2 == s.symbol) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
@@ -228,7 +228,7 @@ int Assembler::assemble() {
           std::string op2 = op1;
           bool found = false;
           for (auto& s : symtab) {
-            if (std::string(s.symbol) == op2) {
+            if (op2 == s.symbol) {
               entry.type = true;
               entry.value = s.address;
               s.used = true;
@@ -255,7 +255,7 @@ int Assembler::assemble() {
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (std::string(s.symbol) == op2) {
+              if (op2 == s.symbol) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
