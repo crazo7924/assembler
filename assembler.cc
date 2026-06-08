@@ -48,42 +48,9 @@ int Assembler::loadFile(const char *name) {
   return 0;
 }
 
-int Assembler::assemble() {
+void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map) {
   int LC = 0;
-
-  static const std::map<std::string, InstructionCode> inst_map = []() {
-    std::map<std::string, InstructionCode> m;
-    for (const auto& pair : instructions) {
-      m[pair.second] = pair.first;
-    }
-    return m;
-  }();
-
-  static const std::map<std::string, RegisterCode> reg_map = []() {
-    std::map<std::string, RegisterCode> m;
-    for (const auto& pair : registers) {
-      m[pair.second] = pair.first;
-    }
-    return m;
-  }();
-
-  static const std::map<std::string, ConditionCode> cond_map = []() {
-    std::map<std::string, ConditionCode> m;
-    for (const auto& pair : conditions) {
-      m[pair.second] = pair.first;
-    }
-    return m;
-  }();
-
-  static const std::map<std::string, DirectiveCode> dir_map = []() {
-    std::map<std::string, DirectiveCode> m;
-    for (const auto& pair : directives) {
-      m[pair.second] = pair.first;
-    }
-    return m;
-  }();
-
-  // Pass 1: Build Symbol Table
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -145,9 +112,13 @@ int Assembler::assemble() {
       LC += 1;
     }
   }
+}
 
-  // Pass 2: Generate Intermediate Code
-  LC = 0;
+void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map,
+                      const std::map<std::string, RegisterCode>& reg_map,
+                      const std::map<std::string, ConditionCode>& cond_map) {
+  int LC = 0;
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -292,7 +263,9 @@ int Assembler::assemble() {
       ic.push_back(entry);
     }
   }
+}
 
+void Assembler::checkUndefinedSymbols() {
   for (const auto& s : symtab) {
     if (s.used && !s.defined) {
       ErrorTable err;
@@ -304,6 +277,32 @@ int Assembler::assemble() {
       }
     }
   }
+}
+
+int Assembler::assemble() {
+  std::map<std::string, InstructionCode> inst_map;
+  for (const auto& pair : instructions) {
+    inst_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, RegisterCode> reg_map;
+  for (const auto& pair : registers) {
+    reg_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, ConditionCode> cond_map;
+  for (const auto& pair : conditions) {
+    cond_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, DirectiveCode> dir_map;
+  for (const auto& pair : directives) {
+    dir_map[pair.second] = pair.first;
+  }
+
+  pass1(inst_map, dir_map);
+  pass2(inst_map, dir_map, reg_map, cond_map);
+  checkUndefinedSymbols();
 
   return errors.empty() ? 0 : 1;
 }
