@@ -77,7 +77,7 @@ void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
 
       bool exists = false;
       for (auto& s : symtab) {
-        if (std::string(s.symbol) == first_token) {
+        if (first_token == s.symbol) {
           s.defined = true;
           s.address = LC;
           exists = true;
@@ -187,7 +187,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (std::string(s.symbol) == op2) {
+              if (op2 == s.symbol) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
@@ -211,7 +211,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
           std::string op2 = op1;
           bool found = false;
           for (auto& s : symtab) {
-            if (std::string(s.symbol) == op2) {
+            if (op2 == s.symbol) {
               entry.type = true;
               entry.value = s.address;
               s.used = true;
@@ -238,7 +238,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (std::string(s.symbol) == op2) {
+              if (op2 == s.symbol) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
