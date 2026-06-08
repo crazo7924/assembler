@@ -48,30 +48,9 @@ int Assembler::loadFile(const char *name) {
   return 0;
 }
 
-int Assembler::assemble() {
+void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map) {
   int LC = 0;
-
-  std::map<std::string, InstructionCode> inst_map;
-  for (const auto& pair : instructions) {
-    inst_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, RegisterCode> reg_map;
-  for (const auto& pair : registers) {
-    reg_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, ConditionCode> cond_map;
-  for (const auto& pair : conditions) {
-    cond_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, DirectiveCode> dir_map;
-  for (const auto& pair : directives) {
-    dir_map[pair.second] = pair.first;
-  }
-
-  // Pass 1: Build Symbol Table
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -115,7 +94,7 @@ int Assembler::assemble() {
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
-      DirectiveCode dir_code = dir_map[op];
+      DirectiveCode dir_code = dir_map.at(op);
       if (dir_code == DirectiveCode::D_START) {
         if ((token_idx + 1) < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
@@ -133,9 +112,13 @@ int Assembler::assemble() {
       LC += 1;
     }
   }
+}
 
-  // Pass 2: Generate Intermediate Code
-  LC = 0;
+void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map,
+                      const std::map<std::string, RegisterCode>& reg_map,
+                      const std::map<std::string, ConditionCode>& cond_map) {
+  int LC = 0;
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -153,7 +136,7 @@ int Assembler::assemble() {
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
-      DirectiveCode dir_code = dir_map[op];
+      DirectiveCode dir_code = dir_map.at(op);
       if (dir_code == DirectiveCode::D_START) {
         if ((token_idx + 1) < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
@@ -181,7 +164,7 @@ int Assembler::assemble() {
         ic.push_back(entry);
       }
     } else if (inst_map.find(op) != inst_map.end()) {
-      InstructionCode inst_code = inst_map[op];
+      InstructionCode inst_code = inst_map.at(op);
       ICTable entry;
       entry.address = LC++;
       entry.code = static_cast<int>(inst_code);
@@ -198,7 +181,7 @@ int Assembler::assemble() {
           // No operands
         } else if (inst_code == InstructionCode::I_BC) {
           if (cond_map.find(op1) != cond_map.end()) {
-            entry.reg = static_cast<int>(cond_map[op1]);
+            entry.reg = static_cast<int>(cond_map.at(op1));
           }
           if ((token_idx + 2) < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
@@ -249,7 +232,7 @@ int Assembler::assemble() {
           }
         } else {
           if (reg_map.find(op1) != reg_map.end()) {
-            entry.reg = static_cast<int>(reg_map[op1]);
+            entry.reg = static_cast<int>(reg_map.at(op1));
           }
           if ((token_idx + 2) < tokens.size()) {
             std::string op2 = tokens[token_idx + 2];
@@ -280,7 +263,9 @@ int Assembler::assemble() {
       ic.push_back(entry);
     }
   }
+}
 
+void Assembler::checkUndefinedSymbols() {
   for (const auto& s : symtab) {
     if (s.used && !s.defined) {
       ErrorTable err;
@@ -292,6 +277,32 @@ int Assembler::assemble() {
       }
     }
   }
+}
+
+int Assembler::assemble() {
+  std::map<std::string, InstructionCode> inst_map;
+  for (const auto& pair : instructions) {
+    inst_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, RegisterCode> reg_map;
+  for (const auto& pair : registers) {
+    reg_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, ConditionCode> cond_map;
+  for (const auto& pair : conditions) {
+    cond_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, DirectiveCode> dir_map;
+  for (const auto& pair : directives) {
+    dir_map[pair.second] = pair.first;
+  }
+
+  pass1(inst_map, dir_map);
+  pass2(inst_map, dir_map, reg_map, cond_map);
+  checkUndefinedSymbols();
 
   return errors.empty() ? 0 : 1;
 }
