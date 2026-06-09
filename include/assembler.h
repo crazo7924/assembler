@@ -15,6 +15,7 @@ private:
   std::vector<ErrorTable> errors;
 
   void tokenize(const std::string& line);
+  void findOrAddSymbol(const std::string& symbol_name, ICTable& entry);
 
 public:
   Assembler();
