@@ -48,8 +48,7 @@ int Assembler::loadFile(const char *name) {
   return 0;
 }
 
-void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
-                      const std::map<std::string, DirectiveCode>& dir_map) {
+int Assembler::assemble() {
   int LC = 0;
 
   static const std::map<std::string, InstructionCode> inst_map = []() {
@@ -111,7 +110,7 @@ void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
 
       bool exists = false;
       for (auto& s : symtab) {
-        if (first_token == s.symbol) {
+        if (std::string(s.symbol) == first_token) {
           s.defined = true;
           s.address = LC;
           exists = true;
@@ -146,13 +145,9 @@ void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
       LC += 1;
     }
   }
-}
 
-void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
-                      const std::map<std::string, DirectiveCode>& dir_map,
-                      const std::map<std::string, RegisterCode>& reg_map,
-                      const std::map<std::string, ConditionCode>& cond_map) {
-  int LC = 0;
+  // Pass 2: Generate Intermediate Code
+  LC = 0;
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -221,7 +216,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (op2 == s.symbol) {
+              if (std::string(s.symbol) == op2) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
@@ -245,7 +240,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
           std::string op2 = op1;
           bool found = false;
           for (auto& s : symtab) {
-            if (op2 == s.symbol) {
+            if (std::string(s.symbol) == op2) {
               entry.type = true;
               entry.value = s.address;
               s.used = true;
@@ -272,7 +267,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
             std::string op2 = tokens[token_idx + 2];
             bool found = false;
             for (auto& s : symtab) {
-              if (op2 == s.symbol) {
+              if (std::string(s.symbol) == op2) {
                 entry.type = true;
                 entry.value = s.address;
                 s.used = true;
@@ -297,9 +292,7 @@ void Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
       ic.push_back(entry);
     }
   }
-}
 
-void Assembler::checkUndefinedSymbols() {
   for (const auto& s : symtab) {
     if (s.used && !s.defined) {
       ErrorTable err;
@@ -311,32 +304,6 @@ void Assembler::checkUndefinedSymbols() {
       }
     }
   }
-}
-
-int Assembler::assemble() {
-  std::map<std::string, InstructionCode> inst_map;
-  for (const auto& pair : instructions) {
-    inst_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, RegisterCode> reg_map;
-  for (const auto& pair : registers) {
-    reg_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, ConditionCode> cond_map;
-  for (const auto& pair : conditions) {
-    cond_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, DirectiveCode> dir_map;
-  for (const auto& pair : directives) {
-    dir_map[pair.second] = pair.first;
-  }
-
-  pass1(inst_map, dir_map);
-  pass2(inst_map, dir_map, reg_map, cond_map);
-  checkUndefinedSymbols();
 
   return errors.empty() ? 0 : 1;
 }
