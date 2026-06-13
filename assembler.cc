@@ -167,6 +167,30 @@ void Assembler::tokenize(const std::string& line) {
   }
 }
 
+void Assembler::findOrAddSymbol(const std::string& symbol_name, ICTable& entry) {
+  bool found = false;
+  for (auto& s : symtab) {
+    if (std::string(s.symbol) == symbol_name) {
+      entry.type = true;
+      entry.value = s.address;
+      s.used = true;
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    SymbolTable sym;
+    std::strncpy(sym.symbol, symbol_name.c_str(), sizeof(sym.symbol) - 1);
+    sym.symbol[sizeof(sym.symbol) - 1] = '\0';
+    sym.address = 0;
+    sym.defined = false;
+    sym.used = true;
+    symtab.push_back(sym);
+    entry.type = true;
+    entry.value = 0;
+  }
+}
+
 int Assembler::loadFile(const char *name) {
   std::ifstream file;
   file.open(name);

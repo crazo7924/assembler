@@ -43,6 +43,7 @@ private:
   std::vector<ErrorTable> errors;
 
   void tokenize(const std::string& line);
+  void findOrAddSymbol(const std::string& symbol_name, ICTable& entry);
   void pass1(const std::map<std::string, InstructionCode>& inst_map,
              const std::map<std::string, DirectiveCode>& dir_map);
   ProcessStatus pass2(const std::map<std::string, InstructionCode>& inst_map,
