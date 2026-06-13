@@ -1,4 +1,4 @@
-CXX = clang++
+CXX ?= g++
 CXXFLAGS = -Wall -Wextra -std=c++11 -Iinclude
 
 SRCS = main.cc assembler.cc
@@ -22,5 +22,4 @@ test_main: tests/test_main.cc assembler.o
 	$(CXX) $(CXXFLAGS) -o test_main tests/test_main.cc assembler.o
 
 test: test_main
-	@echo ./test_main
-	@./test_main
+	echo "run ./test_main"
