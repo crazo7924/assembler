@@ -2,3 +2,4 @@
 assembler
 test_main
 out.obj
+compile_commands.json

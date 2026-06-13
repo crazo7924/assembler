@@ -1,6 +1,7 @@
 #include <assembler.h>
-
 #include <fstream>
+#include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -9,6 +10,141 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+
+ProcessStatus DirectiveProcessor::process(AssemblerContext& ctx, DirectiveCode dir_code) {
+  if (dir_code == DirectiveCode::D_START) {
+    if ((ctx.token_idx + 1) < ctx.tokens.size()) {
+      ctx.LC = std::stoi(ctx.tokens[ctx.token_idx + 1]);
+    }
+  } else if (dir_code == DirectiveCode::D_END) {
+    return ProcessStatus::STOP;
+  } else if (dir_code == DirectiveCode::D_DS) {
+    int size = std::stoi(ctx.tokens[ctx.token_idx + 1]);
+    for (int k = 0; k < size; ++k) {
+      ICTable entry;
+      entry.address = ctx.LC++;
+      entry.code = -1; // -1 for data/storage
+      entry.reg = 0;
+      entry.type = false;
+      entry.value = 0;
+      ctx.ic.push_back(entry);
+    }
+  } else if (dir_code == DirectiveCode::D_DC) {
+    ICTable entry;
+    entry.address = ctx.LC++;
+    entry.code = -1;
+    entry.reg = 0;
+    entry.type = false;
+    entry.value = std::stoi(ctx.tokens[ctx.token_idx + 1]);
+    ctx.ic.push_back(entry);
+  }
+  return ProcessStatus::CONTINUE;
+}
+
+ProcessStatus InstructionProcessor::process(AssemblerContext& ctx,
+                                            InstructionCode inst_code,
+                                            const std::map<std::string, RegisterCode>& reg_map,
+                                            const std::map<std::string, ConditionCode>& cond_map) {
+  ICTable entry;
+  entry.address = ctx.LC++;
+  entry.code = static_cast<int>(inst_code);
+  entry.reg = 0;
+  entry.type = false;
+  entry.value = 0;
+
+  if ((ctx.token_idx + 1) < ctx.tokens.size()) {
+    std::string op1 = ctx.tokens[ctx.token_idx + 1];
+
+    if (op1.back() == ',') op1.pop_back();
+
+    if (inst_code == InstructionCode::I_STOP) {
+      // No operands
+    } else if (inst_code == InstructionCode::I_BC) {
+      if (cond_map.find(op1) != cond_map.end()) {
+        entry.reg = static_cast<int>(cond_map.at(op1));
+      }
+      if ((ctx.token_idx + 2) < ctx.tokens.size()) {
+        std::string op2 = ctx.tokens[ctx.token_idx + 2];
+        bool found = false;
+        for (auto& s : ctx.symtab) {
+          if (std::string(s.symbol) == op2) {
+            entry.type = true;
+            entry.value = s.address;
+            s.used = true;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          SymbolTable sym;
+          std::strncpy(sym.symbol, op2.c_str(), sizeof(sym.symbol) - 1);
+          sym.symbol[sizeof(sym.symbol) - 1] = '\0';
+          sym.address = 0;
+          sym.defined = false;
+          sym.used = true;
+          ctx.symtab.push_back(sym);
+          entry.type = true;
+          entry.value = 0;
+        }
+      }
+    } else if (inst_code == InstructionCode::I_READ || inst_code == InstructionCode::I_PRINT) {
+      std::string op2 = op1;
+      bool found = false;
+      for (auto& s : ctx.symtab) {
+        if (std::string(s.symbol) == op2) {
+          entry.type = true;
+          entry.value = s.address;
+          s.used = true;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        SymbolTable sym;
+        std::strncpy(sym.symbol, op2.c_str(), sizeof(sym.symbol) - 1);
+        sym.symbol[sizeof(sym.symbol) - 1] = '\0';
+        sym.address = 0;
+        sym.defined = false;
+        sym.used = true;
+        ctx.symtab.push_back(sym);
+        entry.type = true;
+        entry.value = 0;
+      }
+    } else {
+      if (reg_map.find(op1) != reg_map.end()) {
+        entry.reg = static_cast<int>(reg_map.at(op1));
+      }
+      if ((ctx.token_idx + 2) < ctx.tokens.size()) {
+        std::string op2 = ctx.tokens[ctx.token_idx + 2];
+        bool found = false;
+        for (auto& s : ctx.symtab) {
+          if (std::string(s.symbol) == op2) {
+            entry.type = true;
+            entry.value = s.address;
+            s.used = true;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          SymbolTable sym;
+          std::strncpy(sym.symbol, op2.c_str(), sizeof(sym.symbol) - 1);
+          sym.symbol[sizeof(sym.symbol) - 1] = '\0';
+          sym.address = 0;
+          sym.defined = false;
+          sym.used = true;
+          ctx.symtab.push_back(sym);
+          entry.type = true;
+          entry.value = 0;
+        }
+      }
+    }
+  }
+  ctx.ic.push_back(entry);
+  return ProcessStatus::CONTINUE;
+}
+
+
 
 Assembler::Assembler() {}
 
@@ -72,30 +208,9 @@ int Assembler::loadFile(const char *name) {
   return 0;
 }
 
-int Assembler::assemble() {
+void Assembler::pass1(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map) {
   int LC = 0;
-
-  std::map<std::string, InstructionCode> inst_map;
-  for (const auto& pair : instructions) {
-    inst_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, RegisterCode> reg_map;
-  for (const auto& pair : registers) {
-    reg_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, ConditionCode> cond_map;
-  for (const auto& pair : conditions) {
-    cond_map[pair.second] = pair.first;
-  }
-
-  std::map<std::string, DirectiveCode> dir_map;
-  for (const auto& pair : directives) {
-    dir_map[pair.second] = pair.first;
-  }
-
-  // Pass 1: Build Symbol Table
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -139,7 +254,7 @@ int Assembler::assemble() {
 
     std::string op = tokens[token_idx];
     if (dir_map.find(op) != dir_map.end()) {
-      DirectiveCode dir_code = dir_map[op];
+      DirectiveCode dir_code = dir_map.at(op);
       if (dir_code == DirectiveCode::D_START) {
         if ((token_idx + 1) < tokens.size()) {
           LC = std::stoi(tokens[token_idx + 1]);
@@ -157,9 +272,16 @@ int Assembler::assemble() {
       LC += 1;
     }
   }
+}
 
-  // Pass 2: Generate Intermediate Code
-  LC = 0;
+ProcessStatus Assembler::pass2(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map,
+                      const std::map<std::string, RegisterCode>& reg_map,
+                      const std::map<std::string, ConditionCode>& cond_map) {
+  int LC = 0;
+  DirectiveProcessor dir_proc;
+  InstructionProcessor inst_proc;
+
   for (size_t i = 0; i < parsed_lines.size(); ++i) {
     const auto& tokens = parsed_lines[i];
     if (tokens.empty()) continue;
@@ -176,75 +298,27 @@ int Assembler::assemble() {
     if (token_idx >= tokens.size()) continue;
 
     std::string op = tokens[token_idx];
+    AssemblerContext ctx{LC, ic, symtab, tokens, token_idx};
+
     if (dir_map.find(op) != dir_map.end()) {
-      DirectiveCode dir_code = dir_map[op];
-      if (dir_code == DirectiveCode::D_START) {
-        if ((token_idx + 1) < tokens.size()) {
-          LC = std::stoi(tokens[token_idx + 1]);
-        }
-      } else if (dir_code == DirectiveCode::D_END) {
-        break;
-      } else if (dir_code == DirectiveCode::D_DS) {
-        int size = std::stoi(tokens[token_idx + 1]);
-        for (int k = 0; k < size; ++k) {
-          ICTable entry;
-          entry.address = LC++;
-          entry.code = -1; // -1 for data/storage
-          entry.reg = 0;
-          entry.type = false;
-          entry.value = 0;
-          ic.push_back(entry);
-        }
-      } else if (dir_code == DirectiveCode::D_DC) {
-        ICTable entry;
-        entry.address = LC++;
-        entry.code = -1;
-        entry.reg = 0;
-        entry.type = false;
-        entry.value = std::stoi(tokens[token_idx + 1]);
-        ic.push_back(entry);
+      DirectiveCode dir_code = dir_map.at(op);
+      ProcessStatus status = dir_proc.process(ctx, dir_code);
+      if (status == ProcessStatus::STOP) {
+        break; // D_END or error handled
       }
     } else if (inst_map.find(op) != inst_map.end()) {
-      InstructionCode inst_code = inst_map[op];
-      ICTable entry;
-      entry.address = LC++;
-      entry.code = static_cast<int>(inst_code);
-      entry.reg = 0;
-      entry.type = false;
-      entry.value = 0;
-
-      if ((token_idx + 1) < tokens.size()) {
-        std::string op1 = tokens[token_idx + 1];
-
-        if (op1.back() == ',') op1.pop_back();
-
-        if (inst_code == InstructionCode::I_STOP) {
-          // No operands
-        } else if (inst_code == InstructionCode::I_BC) {
-          if (cond_map.find(op1) != cond_map.end()) {
-            entry.reg = static_cast<int>(cond_map[op1]);
-          }
-          if ((token_idx + 2) < tokens.size()) {
-            std::string op2 = tokens[token_idx + 2];
-            findOrAddSymbol(op2, entry);
-          }
-        } else if (inst_code == InstructionCode::I_READ || inst_code == InstructionCode::I_PRINT) {
-          std::string op2 = op1;
-          findOrAddSymbol(op2, entry);
-        } else {
-          if (reg_map.find(op1) != reg_map.end()) {
-            entry.reg = static_cast<int>(reg_map[op1]);
-          }
-          if ((token_idx + 2) < tokens.size()) {
-            std::string op2 = tokens[token_idx + 2];
-            findOrAddSymbol(op2, entry);
-          }
-        }
+      InstructionCode inst_code = inst_map.at(op);
+      ProcessStatus status = inst_proc.process(ctx, inst_code, reg_map, cond_map);
+      if (status == ProcessStatus::STOP) {
+        break;
       }
-      ic.push_back(entry);
     }
   }
 
+  return ProcessStatus::CONTINUE;
+}
+
+void Assembler::checkUndefinedSymbols() {
   for (const auto& s : symtab) {
     if (s.used && !s.defined) {
       ErrorTable err;
@@ -256,6 +330,35 @@ int Assembler::assemble() {
       }
     }
   }
+}
+
+int Assembler::assemble() {
+  std::map<std::string, InstructionCode> inst_map;
+  for (const auto& pair : instructions) {
+    inst_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, RegisterCode> reg_map;
+  for (const auto& pair : registers) {
+    reg_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, ConditionCode> cond_map;
+  for (const auto& pair : conditions) {
+    cond_map[pair.second] = pair.first;
+  }
+
+  std::map<std::string, DirectiveCode> dir_map;
+  for (const auto& pair : directives) {
+    dir_map[pair.second] = pair.first;
+  }
+
+  pass1(inst_map, dir_map);
+  ProcessStatus pass2_status = pass2(inst_map, dir_map, reg_map, cond_map);
+  if (pass2_status == ProcessStatus::ERROR) {
+    return 1;
+  }
+  checkUndefinedSymbols();
 
   return errors.empty() ? 0 : 1;
 }
