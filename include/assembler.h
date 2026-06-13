@@ -5,6 +5,34 @@
 #include <string>
 #include "defs.h"
 
+
+enum class ProcessStatus {
+  CONTINUE,
+  STOP,
+  ERROR
+};
+
+struct AssemblerContext {
+  int& LC;
+  std::vector<ICTable>& ic;
+  std::vector<SymbolTable>& symtab;
+  const std::vector<std::string>& tokens;
+  size_t token_idx;
+};
+
+class DirectiveProcessor {
+public:
+  ProcessStatus process(AssemblerContext& ctx, DirectiveCode dir_code);
+};
+
+class InstructionProcessor {
+public:
+  ProcessStatus process(AssemblerContext& ctx,
+                        InstructionCode inst_code,
+                        const std::map<std::string, RegisterCode>& reg_map,
+                        const std::map<std::string, ConditionCode>& cond_map);
+};
+
 class Assembler {
 private:
   bool trace = false;
@@ -17,10 +45,10 @@ private:
   void tokenize(const std::string& line);
   void pass1(const std::map<std::string, InstructionCode>& inst_map,
              const std::map<std::string, DirectiveCode>& dir_map);
-  void pass2(const std::map<std::string, InstructionCode>& inst_map,
-             const std::map<std::string, DirectiveCode>& dir_map,
-             const std::map<std::string, RegisterCode>& reg_map,
-             const std::map<std::string, ConditionCode>& cond_map);
+  ProcessStatus pass2(const std::map<std::string, InstructionCode>& inst_map,
+                      const std::map<std::string, DirectiveCode>& dir_map,
+                      const std::map<std::string, RegisterCode>& reg_map,
+                      const std::map<std::string, ConditionCode>& cond_map);
   void checkUndefinedSymbols();
 
 public:
